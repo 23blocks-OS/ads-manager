@@ -1,0 +1,32 @@
+aws_region = "us-east-1"
+environment = "production"
+project_name = "ads-manager"
+
+vpc_cidr = "10.0.0.0/16"
+
+# Database
+database_instance_class = "db.t3.medium"
+database_name = "ads_manager"
+database_username = "adsmanager"
+database_password = "CHANGE_THIS_TO_SECURE_PASSWORD"
+
+# Redis
+redis_node_type = "cache.t3.micro"
+redis_auth_token = "CHANGE_THIS_TO_SECURE_TOKEN"
+
+# Domain & Certificate
+domain_name = "adsmanager.yourdomain.com"
+certificate_arn = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERTIFICATE_ID"
+
+# Docker Images (update after building and pushing to ECR)
+backend_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/ads-manager/production/backend:latest"
+frontend_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/ads-manager/production/frontend:latest"
+
+# ECS Configuration
+backend_cpu = 512
+backend_memory = 1024
+backend_desired_count = 2
+
+frontend_cpu = 256
+frontend_memory = 512
+frontend_desired_count = 2

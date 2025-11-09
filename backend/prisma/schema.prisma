@@ -1,0 +1,428 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true)
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+
+  companies     UserCompany[]
+  notifications Notification[]
+  activities    ActivityLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  VIEWER
+}
+
+// Company Management
+model Company {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  website     String?
+  industry    String?
+  logo        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users            UserCompany[]
+  products         Product[]
+  campaigns        Campaign[]
+  brandGuidelines  BrandGuidelines?
+  budgetSettings   BudgetSettings?
+  integrations     Integration[]
+  billingInfo      BillingInfo?
+
+  @@map("companies")
+}
+
+model UserCompany {
+  id        String   @id @default(uuid())
+  userId    String
+  companyId String
+  role      CompanyRole @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@map("user_companies")
+}
+
+enum CompanyRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model BrandGuidelines {
+  id          String   @id @default(uuid())
+  companyId   String   @unique
+  brandVoice  String?  // casual, professional, friendly, authoritative
+  toneKeywords String[] // array of keywords
+  colors      Json?    // primary, secondary colors
+  fonts       Json?
+  logoUrl     String?
+  doNotUse    String[] // words/phrases to avoid
+  targetAudience String?
+  valueProposition String?
+  uniqueSellingPoints String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("brand_guidelines")
+}
+
+// Product Management
+model Product {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  description String
+  category    String?
+  price       Float?
+  currency    String   @default("USD")
+  images      String[]
+  features    String[]
+  benefits    String[]
+  targetAudience String?
+  keywords    String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+  adCreatives AdCreative[]
+
+  @@index([companyId])
+  @@map("products")
+}
+
+// Budget Management
+model BudgetSettings {
+  id              String   @id @default(uuid())
+  companyId       String   @unique
+  totalMonthlyBudget Float
+  currency        String   @default("USD")
+  autoAllocate    Boolean  @default(true)
+  platformLimits  Json?    // per-platform budget limits
+  dailySpendLimit Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("budget_settings")
+}
+
+// Ad Platform Integrations
+model Integration {
+  id          String           @id @default(uuid())
+  companyId   String
+  platform    AdPlatform
+  credentials Json             // encrypted credentials
+  isActive    Boolean          @default(true)
+  lastSyncAt  DateTime?
+  status      IntegrationStatus @default(ACTIVE)
+  errorMessage String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@unique([companyId, platform])
+  @@index([companyId])
+  @@map("integrations")
+}
+
+enum AdPlatform {
+  GOOGLE_ADS
+  META_ADS
+  LINKEDIN_ADS
+  TIKTOK_ADS
+  TWITTER_ADS
+}
+
+enum IntegrationStatus {
+  ACTIVE
+  ERROR
+  DISCONNECTED
+  PENDING
+}
+
+// Campaign Management
+model Campaign {
+  id            String         @id @default(uuid())
+  companyId     String
+  productId     String?
+  integrationId String
+  platform      AdPlatform
+  name          String
+  objective     CampaignObjective
+  status        CampaignStatus @default(DRAFT)
+  budget        Float
+  dailyBudget   Float?
+  startDate     DateTime
+  endDate       DateTime?
+  targetAudience Json         // detailed targeting parameters
+  platformCampaignId String?  // ID from the ad platform
+  aiGenerated   Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product       Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  integration   Integration    @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  adCreatives   AdCreative[]
+  metrics       CampaignMetrics[]
+  optimizations CampaignOptimization[]
+
+  @@index([companyId])
+  @@index([platform])
+  @@index([status])
+  @@map("campaigns")
+}
+
+enum CampaignObjective {
+  AWARENESS
+  TRAFFIC
+  ENGAGEMENT
+  LEADS
+  CONVERSIONS
+  SALES
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+// Ad Creatives
+model AdCreative {
+  id          String   @id @default(uuid())
+  campaignId  String
+  productId   String?
+  type        AdType
+  headline    String
+  description String?
+  body        String?
+  callToAction String?
+  imageUrl    String?
+  videoUrl    String?
+  landingUrl  String
+  aiGenerated Boolean  @default(true)
+  performance Json?    // CTR, conversions, etc.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product  Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@map("ad_creatives")
+}
+
+enum AdType {
+  IMAGE
+  VIDEO
+  CAROUSEL
+  TEXT
+  DYNAMIC
+}
+
+// Analytics & Metrics
+model CampaignMetrics {
+  id          String   @id @default(uuid())
+  campaignId  String
+  date        DateTime
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  spend       Float    @default(0)
+  revenue     Float    @default(0)
+  ctr         Float    @default(0) // Click-through rate
+  cpc         Float    @default(0) // Cost per click
+  cpa         Float    @default(0) // Cost per acquisition
+  roas        Float    @default(0) // Return on ad spend
+  reach       Int      @default(0)
+  frequency   Float    @default(0)
+  createdAt   DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, date])
+  @@index([campaignId])
+  @@index([date])
+  @@map("campaign_metrics")
+}
+
+// AI Optimization
+model CampaignOptimization {
+  id          String   @id @default(uuid())
+  campaignId  String
+  type        OptimizationType
+  action      String   // description of action taken
+  reasoning   String   // AI reasoning
+  previousValue Json?
+  newValue    Json?
+  impact      Float?   // expected or actual impact
+  appliedAt   DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_optimizations")
+}
+
+enum OptimizationType {
+  BUDGET_ADJUSTMENT
+  BID_ADJUSTMENT
+  AUDIENCE_REFINEMENT
+  AD_CREATIVE_ROTATION
+  PLATFORM_REALLOCATION
+  SCHEDULE_OPTIMIZATION
+  TARGETING_EXPANSION
+}
+
+// Billing
+model BillingInfo {
+  id              String   @id @default(uuid())
+  companyId       String   @unique
+  stripeCustomerId String  @unique
+  paymentMethodId String?
+  subscriptionId  String?
+  plan            BillingPlan @default(FREE)
+  status          BillingStatus @default(ACTIVE)
+  currentPeriodStart DateTime?
+  currentPeriodEnd DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+
+  @@map("billing_info")
+}
+
+enum BillingPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum BillingStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIALING
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  billingId   String
+  stripeInvoiceId String @unique
+  amount      Float
+  currency    String   @default("USD")
+  status      InvoiceStatus
+  paidAt      DateTime?
+  dueDate     DateTime
+  createdAt   DateTime @default(now())
+
+  billing BillingInfo @relation(fields: [billingId], references: [id], onDelete: Cascade)
+
+  @@index([billingId])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+// Notifications
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  CAMPAIGN_STARTED
+  CAMPAIGN_ENDED
+  BUDGET_ALERT
+  PERFORMANCE_ALERT
+  OPTIMIZATION_APPLIED
+  INTEGRATION_ERROR
+  BILLING_ISSUE
+  SYSTEM_UPDATE
+}
+
+// Activity Logs
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  action      String
+  entityType  String   // Campaign, Product, Company, etc.
+  entityId    String
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
