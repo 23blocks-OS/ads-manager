@@ -235,6 +235,31 @@ terraform plan
 terraform apply
 ```
 
+## Connecting Ad Platforms
+
+The platform integrates with major advertising platforms. Follow these guides to connect your accounts:
+
+📘 **[Integration Documentation](./docs/integrations/)** - Complete guides for all platforms
+
+### Quick Links
+
+- **[Google Ads Setup Guide](./docs/integrations/GOOGLE_ADS_SETUP.md)** - Connect Google Ads API
+- **[Meta Ads Setup Guide](./docs/integrations/META_ADS_SETUP.md)** - Connect Facebook & Instagram Ads
+- **[LinkedIn Ads Setup Guide](./docs/integrations/LINKEDIN_ADS_SETUP.md)** - Connect LinkedIn Ads
+- **[Integration Summary](./docs/integrations/INTEGRATION_SUMMARY.md)** - Quick reference for all platforms
+- **[Troubleshooting Guide](./docs/integrations/TROUBLESHOOTING.md)** - Common issues and solutions
+
+### What You'll Need
+
+Each platform requires:
+1. Developer account and app registration
+2. API access approval (1-5 days)
+3. OAuth credentials
+4. Access tokens
+5. Conversion tracking setup
+
+See the integration guides for detailed step-by-step instructions.
+
 ## Environment Variables
 
 See `.env.example` files in each directory for required environment variables.
